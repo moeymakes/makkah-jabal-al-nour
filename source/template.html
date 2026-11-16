@@ -134,6 +134,11 @@ header { display: grid; gap: 1.2em; }
 #t { margin-top: -.6em; font-size: .9em; font-weight: 600; letter-spacing: .04em; color: #ffd9a0; text-shadow: 0 1px 6px #000c; }
 #fl { position: absolute; top: .6em; right: 3.6em; display: none; padding: .3em .6em; background: #2a1608d9; box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8; }
 @media (pointer: coarse) { .g #fl { display: flex; } }
+/* touch: hold to fly up (lifts off from walking) or down (lands on reaching the ground), stacked by the right thumb */
+#up, #dn { position: absolute; right: .6em; display: none; width: 2.4em; height: 2.4em; padding: 0; background: #2a1608d9; box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.5em; color: #fff4e6; opacity: .8; touch-action: none; -webkit-touch-callout: none; }
+#up { bottom: 3.6em; } #dn { bottom: .8em; }
+#up:active, #dn:active { opacity: 1; background: #ffd9a0; color: #2a1608; }
+@media (pointer: coarse) { .g #up, .g #dn { display: flex; } }
 #o {
   position: absolute; top: .6em; right: .6em; display: none; padding: .3em .6em; background: #2a1608d9;
   box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8;
@@ -179,6 +184,8 @@ header { display: grid; gap: 1.2em; }
 </div>
 <button id=o aria-label=Menu>≡</button>
 <button id=fl aria-label="Fly or walk">✈</button>
+<button id=up aria-label="Fly up">▲</button>
+<button id=dn aria-label="Fly down">▼</button>
 <pre id=i></pre>
 <script>
 /*SCRIPT*/

@@ -581,6 +581,13 @@ const go = () => {
 };
 $('tm').querySelectorAll('button').forEach((b, i) => { if (i === TOD) b.className = 'on'; else b.onclick = () => { keep('nourTime', i); location.reload(); }; });
 bDive.onclick = go; $('o').onclick = () => ui(true); $('fl').onclick = () => { fly = !fly; F[VY] = 0; };
+// touch up / down: held like E and Q
+for (const [id, code] of [['up', 'KeyE'], ['dn', 'KeyQ']]) {
+  const b = $(id), hold = (v) => (e) => { e.preventDefault(); key({ code, repeat: false }, v); };
+  b.addEventListener('pointerdown', hold(1));
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, hold(0));
+  b.oncontextmenu = (e) => e.preventDefault();
+}
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { keep('nour', 2 - i); location.reload(); }; });
 document.addEventListener('pointerlockchange', () => ui(!document.pointerLockElement));
 
