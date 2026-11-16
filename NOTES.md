@@ -5,12 +5,20 @@ and adapted. Brief: `prompt.txt`.
 
 ## State (update after every step)
 
-- Phase: 2-5, composition and critic loop (unattended build for Moey, 2026-11-16)
-- Done: project scaffold, ground model (cone + knob, valleys, ranges), path cut into the rock, cave cleft, Haram,
-  clock tower, city with far-shadow heights, Time presets (Dawn default), lamps, stars and moon, sound layers
-- Last capture: verify/iter-04 (1280x720 look-only); iterations 00-03 were composition passes, no critic yet
-- Next step: full-res capture iter-05 with flight, first critic, perf bench, index.html checks at Low and each Time
-- No GitHub, no pushes, no publishing: Moey reviews first.
+- Phase: DONE for review (2026-11-16). Not published: no GitHub repo, no push. Moey reviews first.
+- Last critic capture: verify/iter-21 (6 poses 2560x1440 + flight); critic iterations at iter-09, 15, 17, 20, 21
+  (5 of 5, stopping rule reached). Final verdict text: verify/iter-21/critic.md, highest severity "blocker" on the
+  city, the mountain silhouette and the cave, which were "major" in iterations 3-4 with little change since:
+  treated as critic noise, but the city and the cave are the honest weak spots.
+- Minified index.html: 0 console errors at High, Low (nour=2) and each Time (nourTime=0/1/2): verify/final-*.
+- Perf (verify/final-bench, dev.html, 2560x1440, 60 s flight, RTX 3070 shared with other worlds): GPU avg 5.56 ms,
+  p99 8.49, max 8.75. Load to menu 3-5 s.
+- Deliverables: index.html (~97 KB, ~39 KB gzipped), perf.txt, README.md with screenshots, prompt.txt, LICENSE.
+- Known open items: city reads as repeated boxes from the mountain; the cave terrace is dark at dawn and its
+  stairs are plain; Jabal al-Nour reads as a cone from far away; flight has a jump near the summit (frames 4-5).
+- Found while building: the far-terrain mesh is back-facing from above in the shared madinah-horizon code, so its
+  normals were flipped (unlit by the sun). Fixed here (`fl_` ignores facing for mat 1); the sibling worlds still
+  have it. Not edited there.
 
 ## Geography (composed, not to scale)
 
