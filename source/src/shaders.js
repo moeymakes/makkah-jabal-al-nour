@@ -71,13 +71,13 @@ fn dens(p: vec3f, gx: f32, gz: f32) -> f32 {
   d += m.y * ((tor * (1. - .55 * m.z) + (fbm(p * .24, 3) - .5) * 2.6) * mix(.35, 1., calm) + sheet + (fbm(p * .95, 2) - .5) * .55);
   // the cave of Hira: boulders leaning together over a narrow cleft, the mouth facing u.cf
   if (dot(lc, lc) < 900.) {
-    d = max(d, -ell(lc, vec3f(-3.3, 1.7, .3), vec3f(2.5, 2.9, 2.6)));
-    d = max(d, -ell(lc, vec3f(3.4, 2., .5), vec3f(2.6, 3.1, 2.6)));
-    d = max(d, -ell(lc, vec3f(.2, 4.6, .1), vec3f(4.4, 1.6, 3.)));
+    d = max(d, -ell(lc, vec3f(-3.2, 1.9, .9), vec3f(2.4, 3.2, 2.5)));
+    d = max(d, -ell(lc, vec3f(3.3, 2.2, 1.1), vec3f(2.5, 3.4, 2.5)));
+    d = max(d, -ell(lc, vec3f(.4, 5.2, .6), vec3f(4.2, 1.5, 2.8)));
     d = max(d, -ell(lc, vec3f(0., 3., -4.), vec3f(5.5, 4.5, 3.)));
     // the cleft: a narrowing slot under the boulders, closed at the back
-    let wq = 1.05 - max(-lc.z, 0.) * .12;
-    let bx = vec3f(abs(lc.x) - wq, abs(lc.y - 1.2) - 1.25, abs(lc.z + 1.6) - 2.4);
+    let wq = 1.05 - max(-lc.z, 0.) * .12 - max(lc.y - 2.3, 0.) * .3;
+    let bx = vec3f(abs(lc.x) - wq, abs(lc.y - 2.1) - 2.15, abs(lc.z + 1.6) - 2.4);
     let slot = length(max(bx, vec3f(0.))) + min(max(bx.x, max(bx.y, bx.z)), 0.);
     d = min(d, slot);
   }
@@ -446,7 +446,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let top = ss(.6, .85, on.y);
         let jn = max(ss(.88, .97, abs(fract(i.wp.x / .6 + hs(floor(i.wp.z / .6)) * .5) - .5) * 2.), ss(.88, .97, abs(fract(i.wp.z / .6) - .5) * 2.)) * top * wfade;
     let cell = floor(i.wp.xz / .6) + floor(i.wp.y / .17) * 7.;
-    alb = mix(vec3f(.30, .23, .16), vec3f(.42, .32, .22), top) * (.82 + .3 * hs(cell.x * 3.1 + cell.y * 1.7)) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .15 * jn);
+    alb = mix(vec3f(.24, .19, .14), vec3f(.34, .27, .19), top) * (.82 + .3 * hs(cell.x * 3.1 + cell.y * 1.7)) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .15 * jn);
     alb = mix(alb, vec3f(.46, .38, .29), ss(.5, .8, Lg.a + .25 * B.c) * .45);
     bump = .12; gloss = .05;
   } else if (mat == 6) {
@@ -454,9 +454,9 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let row = floor(fv / .32); let bx = fract(fu / .62 + row * .5); let by = fract(fv / .32);
     let mortar = (1. - ss(.0, .12, by) * ss(1., .88, by)) * .6 + (1. - ss(.0, .08, bx) * ss(1., .92, bx)) * .5;
     let hh = hs(row * 7.1 + floor(fu / .62 + row * .5));
-    alb = mix(mix(vec3f(.33, .29, .25), vec3f(.43, .38, .33), hh), vec3f(.27, .23, .20), step(.8, hh)) * (.8 + .35 * C.h);
+    alb = mix(mix(vec3f(.26, .22, .18), vec3f(.34, .29, .24), hh), vec3f(.21, .18, .15), step(.8, hh)) * (.8 + .35 * C.h);
     alb = mix(alb, vec3f(.50, .47, .42), sat(mortar) * .6 * wall);
-    alb = mix(alb, vec3f(.36, .31, .26) * (.85 + .2 * B.h), ss(.6, .85, on.y));
+    alb = mix(alb, vec3f(.30, .26, .21) * (.85 + .2 * B.h), ss(.6, .85, on.y));
     bump = .5;
   } else if (mat == 7 || mat == 14 || mat == 17) {
     // the Haram's white stone (7), the clock tower's stone (14), the city (17) with windows by floor
@@ -477,7 +477,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
       alb = mix(alb, alb * vec3f(.6, .58, .56), (1. - wfade) * wall * .4);
       let wc = mix(vec3f(1., .62, .30), vec3f(1., .9, .78), step(.6, hs(bay * 1.7 + sd * 5.)));
       emi = wc * .9 * LIGHTS * (win * lit + (1. - wfade) * wall * step(3.3, fv) * step(fv, top) * litF * .07);
-      alb = mix(alb, alb * vec3f(.5, .47, .45), ss(.6, .9, on.y));
+      alb = mix(alb, mix(vec3f(.30, .29, .27), vec3f(.47, .42, .36), hs(sd * 41.)), ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
     } else {
       let a1 = arcade(fu, fv, 6.5, 8.5, 1.) * wall;

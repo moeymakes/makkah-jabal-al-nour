@@ -537,8 +537,8 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
       if (max(abs(x - CLOCK[0]) - 160, abs(z - CLOCK[1]) - 120) < 0) continue;
       const dm = hypot(x - HARAM[0], z - HARAM[1]);
       let t = CITY_LOW[(rnd() * CITY_LOW.length) | 0];
-      if (dm < 900 && rnd() < .5) t = rnd() < .5 ? 6 : rnd() < .8 ? 7 : 8;
-      else if (dm < 1800 && rnd() < .1) t = 6;
+      if (dm < 900 && rnd() < .55) t = rnd() < .5 ? 6 : rnd() < .8 ? 7 : 8;
+      else if (dm < 2200 && rnd() < .22) t = rnd() < .7 ? 5 : 6;
       // keep the sight line from the mountain to the Haram low
       const vx = x - HARAM[0], vz = z - HARAM[1], along = vx * ax + vz * az;
       if (t >= 6 && along > 0 && along < 2200 && abs(vx * az - vz * ax) < 170 + along * .05) t = CITY_LOW[(rnd() * 4) | 0];
