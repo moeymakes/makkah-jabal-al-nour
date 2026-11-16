@@ -133,7 +133,10 @@ fn jabal(p: vec2f) -> f32 {
   let s1 = length((p - vec2f(150., -150.)) * mat2x2f(.7, .7, -.7, .7) * vec2f(1., 2.1));
   let s2 = length((p - vec2f(-140., -110.)) * mat2x2f(.8, -.6, .6, .8) * vec2f(1., 2.));
   h += 52. * pow(max(1. - s1 / 210., 0.), 1.3) + 38. * pow(max(1. - s2 / 190., 0.), 1.3);
-  h += 24. * (rib - .55) * ss(15., 90., r) * ss(480., 220., r) + 7. * (fbm(vec3f(p * .03, 3.), 3) - .5) * ss(480., 250., r);
+  // great stacked blocks of granite break the cone into crags
+  let bq = vec3f(p.x * .028, 0., p.y * .028) + vec3f(fbm(vec3f(p * .01, 2.), 2), 0., fbm(vec3f(p * .01, 9.), 2)) * 1.5;
+  h += 13. * (.55 - wor(bq)) * ss(10., 60., r) * ss(520., 300., r);
+  h += 11. * (rib - .55) * ss(15., 90., r) * ss(480., 220., r) + 7. * (fbm(vec3f(p * .03, 3.), 3) - .5) * ss(480., 250., r);
   return h;
 }
 @compute @workgroup_size(8, 8) fn main(@builtin(global_invocation_id) id: vec3u) {
@@ -154,7 +157,7 @@ fn jabal(p: vec2f) -> f32 {
   let n3 = ridged(p + vec2f(77., 31.), .0075, 3);
   let n4 = ridged(p + vec2f(511., 97.), .024, 3);
   var hm = 30. + 360. * pow(n1, 1.8) + 80. * (n2 - .5) + 38. * (n3 - .5) * (.4 + n1) + 20. * (fbm(vec3f(p * .012, 2.), 3) - .5) + 12. * (n4 - .55) * (.3 + n1) * ss(30., 6., u.o.z);
-  hm *= ss(560., 1100., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2));
+  hm *= ss(560., 1100., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2)) * mix(.5, 1., ss(1200., 4500., rj));
   let rimR = ss(5500., 10500., length(p - vec2f(-1200., 1500.)));
   hm += rimR * (220. + 380. * pow(ridged(p + vec2f(4000., 0.), .00045, 4), 1.5));
   var h = flo + mix(hm, 2. * (fbm(vec3f(p * .02, 4.), 2) - .5), val * (1. - rimR));
@@ -293,7 +296,7 @@ fn aerialSh(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f, sh: f32) -> vec3f {
   let k2 = rd.y / 60.;
   let od2 = select((1. - exp(-k2 * d)) / k2, d, abs(k2) < 1e-7) * exp(-max(cam.y + 30., -30.) / 60.);
   let T = exp(-BETA * od - vec3f(1.5e-4, 1.6e-4, 1.75e-4) * MIST * od2);
-  let ins = mix(skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun), FARH, ss(900., 7000., d) * .4);
+  let ins = mix(skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun), FARH, ss(900., 7000., d) * .65);
   return c * T + ins * (1. - T) * mix(vec3f(.30, .36, .52), vec3f(1.), sh);
 }
 fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f {
@@ -432,17 +435,18 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let tile = 1. - ss(.0, .05, min(abs(fract(i.wp.x / 6.) - .5), abs(fract(i.wp.z / 6.) - .5)) * 2. - .86);
     alb = mix(alb, vec3f(.86, .85, .82) * (1. - .1 * tile), plaza);
     emi = vec3f(1., .85, .7) * .04 * LIGHTS * plaza;
-    bump = select(1.3, mix(mix(1.1, .4, ss(800., 4000., dist)), .15, ss(.05, .3, city)), far); gloss = .04;
+    bump = select(1.3, mix(mix(.6, .3, ss(800., 4000., dist)), .15, ss(.05, .3, city)), far); gloss = .04;
   } else if (mat == 2 || mat == 3) {
     alb = granite(A, B, C, Lg, flt, select(-.05, .12, mat == 3)) * (.75 + .5 * hs(sd * 7.));
     bump = 1.5; gloss = .05;
   } else if (mat == 4) {
-    alb = mix(vec3f(.46, .39, .31), vec3f(.33, .27, .22), hs(sd * 91.)) * (.75 + .4 * B.h); bump = .6; gloss = .06;
+    alb = mix(vec3f(.26, .21, .17), vec3f(.18, .15, .12), hs(sd * 91.)) * (.75 + .4 * B.h); bump = .6; gloss = .06;
   } else if (mat == 5) {
     // concrete steps: pale treads worn smooth in the middle, darker risers, dust in the corners
     let top = ss(.6, .85, on.y);
         let jn = max(ss(.88, .97, abs(fract(i.wp.x / .6 + hs(floor(i.wp.z / .6)) * .5) - .5) * 2.), ss(.88, .97, abs(fract(i.wp.z / .6) - .5) * 2.)) * top * wfade;
-    alb = mix(vec3f(.30, .23, .16), vec3f(.42, .32, .22), top) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .15 * jn);
+    let cell = floor(i.wp.xz / .6) + floor(i.wp.y / .17) * 7.;
+    alb = mix(vec3f(.30, .23, .16), vec3f(.42, .32, .22), top) * (.82 + .3 * hs(cell.x * 3.1 + cell.y * 1.7)) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .15 * jn);
     alb = mix(alb, vec3f(.46, .38, .29), ss(.5, .8, Lg.a + .25 * B.c) * .45);
     bump = .12; gloss = .05;
   } else if (mat == 6) {
@@ -452,7 +456,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let hh = hs(row * 7.1 + floor(fu / .62 + row * .5));
     alb = mix(mix(vec3f(.33, .29, .25), vec3f(.43, .38, .33), hh), vec3f(.27, .23, .20), step(.8, hh)) * (.8 + .35 * C.h);
     alb = mix(alb, vec3f(.50, .47, .42), sat(mortar) * .6 * wall);
-    alb = mix(alb, vec3f(.46, .44, .41) * (.85 + .2 * B.h), ss(.6, .85, on.y));
+    alb = mix(alb, vec3f(.36, .31, .26) * (.85 + .2 * B.h), ss(.6, .85, on.y));
     bump = .5;
   } else if (mat == 7 || mat == 14 || mat == 17) {
     // the Haram's white stone (7), the clock tower's stone (14), the city (17) with windows by floor
@@ -514,7 +518,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let band = step(9., fv) * step(fv, 10.2) * wall;
     alb = mix(vec3f(.016, .016, .018), vec3f(.55, .42, .16), band); gloss = mix(.05, .6, band); bump = 0.;
   }
-  let N = normalize(qrot(i.q, normalize(on + (A.n * .8 + B.n * .6 * select(1., ss(400., 80., dist), far) + C.n * .4 * ss(70., 10., dist) + F.n * .5 * fk) * bump)));
+  let N = normalize(qrot(i.q, normalize(on + (A.n * .8 + B.n * .6 * select(1., 0., far) + C.n * .4 * ss(70., 10., dist) * select(1., 0., far) + F.n * .5 * fk) * bump)));
   let L = g.sun.xyz; let V = normalize(g.cam.xyz - i.wp);
   let vv = vol(i.wp + n0 * 1.2); let v2 = vol(i.wp + n0 * 4.);
   var ao = (sat((vv.x - .5) * 6.) * .5 + sat((v2.x - .5) * 2.5) * .5) * vao * mix(1., i.ao, f32(mat == 1));
@@ -653,7 +657,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) d: vec3f };
     let mar = .78 + .22 * ss(.35, .65, fbm(mp * 2.2 + 3., 3));
     c += vec3f(1., .97, .9) * 1.6 * disc * mar + vec3f(.10, .11, .14) * .25 * exp(-md * 18.);
   } else {
-    c += SUNC * 9. * ss(.99988, .99994, mu);
+    c += SUNC * 5. * ss(.99988, .99994, mu);
   }
   return fin(c);
 }

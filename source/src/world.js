@@ -40,7 +40,7 @@ function makePath(fh) {
   const slope = (r) => .454 * pow(max(1 - r / 600, 0), .45) + (r < 118 ? .9 : 0);
   const centre = (r) => (27 + 9 * sin(r * .011)) * DEG;
   const corners = [];
-  let r = 575, side = 1, n = 0;
+  let r = 445, side = 1, n = 0;
   while (r > 9) {
     const L = min(21, max(8, r * .55)), b = centre(r) + side * L / r;
     corners.push([...polar(r, b), n % 3 === 2 && r < 470 && r > 60 ? 2 : 1]);
@@ -108,9 +108,9 @@ function makePoses(PT, fh) {
     [a[0], 1.7, a[2], KNOB[0], s[1] - 25, KNOB[1], 0],
     [best[0], 1.7, best[2], HARAM[0], -10, HARAM[1], 0],
     [s[0] + 1, 1.7, s[2] + 3.5, 120, 120, 420, 0],
-    [term[0] + o[0] * 1.5 + o[2] * .8, 1.7, term[2] + o[2] * 1.5 - o[0] * .8, c[0], c[1] + 1.3, c[2], 0],
+    [c[0] + o[0] * 4.4 + o[2] * .5, 1.7, c[2] + o[2] * 4.4 - o[0] * .5, c[0], c[1] + 1.6, c[2], 0],
     [c[0] + o[0] * 3 - o[2] * 1.6, 1.7, c[2] + o[2] * 3 + o[0] * 1.6, CLOCK[0], 220, CLOCK[1], 0],
-    [420, 560, -330, -1000, 30, 1150, 1],
+    [400, 345, -150, -950, 60, 950, 1],
   ];
 }
 function makeFly(PT, fh) {
@@ -128,10 +128,10 @@ function makeFly(PT, fh) {
   add(c[0] + o[0] * 30, c[1] + 8, c[2] + o[2] * 30, c[0], c[1] + 2, c[2]);
   add(c[0] + o[0] * 75 - 30, c[1] + 20, c[2] + o[2] * 75 + 20, CLOCK[0], 200, CLOCK[1]);
   add(-240, 290, 120, HARAM[0], 0, HARAM[1]);
-  add(-330, 300, -120, 0, 230, 0);
-  add(-150, 360, -380, 0, 220, 0);
-  add(180, 450, -420, -600, 60, 700);
-  add(420, 560, -330, -1000, 30, 1150);
+  add(-330, 310, -120, -1400, 120, 900);
+  add(-150, 380, -380, -1000, 60, 1000);
+  add(260, 420, -380, -900, 40, 1000);
+  add(400, 345, -150, -950, 60, 950);
   return new Float32Array(K);
 }
 
@@ -458,11 +458,11 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
   rseed(12);
   for (let i = 0; i < 90000; i++) {
     const k = pickV(), x = T.wp[k], y = T.wp[k + 1], z = T.wp[k + 2], ny = T.wn[k + 1];
-    if (max(abs(x), abs(z)) > -OX - 6 || nearPose(x, z, 6) || nearCave(x, z, 4.5)) continue;
+    if (max(abs(x), abs(z)) > -OX - 6 || nearPose(x, z, 6) || nearCave(x, z, 9)) continue;
     const pd = pathDist(P, x, z), gr = nearA(x, z, 2);
     if (pd < .6) continue;
     const q = qRand(), r = rnd();
-    if (r < .16 * (1 - gr * .6) && pd > 2.2) {
+    if (r < .16 * (1 - gr * .6) && pd > 2.2 && ny > .35) {
       const big = rnd() < .18, sc = big ? rr(1.6, 4.2) : rr(.4, 1.6);
       if (nearFly(x, y, z, sc + 3)) continue;
       solid(big ? 2 : (rnd() < .5 ? 0 : 1), x - T.wn[k] * sc * .35, y - ny * sc * .4, z - T.wn[k + 2] * sc * .35, sc, q, rnd() < .65 ? 2 : 3, rnd(), 0, 0);
@@ -526,7 +526,7 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
   const sx_ = -HARAM[0], sz_ = -HARAM[1], sl_ = hypot(sx_, sz_), ax = sx_ / sl_, az = sz_ / sl_;
   for (let dz = -4300; dz < 7400; dz += 360) for (let dx = -7600; dx < 4400; dx += 360) {
     if (hypot(dx, dz) > 8200) continue;
-    const ang = rr(-.6, .6), ca = cos(ang), sa = sin(ang);
+    const ang = rr(-.3, .3), ca = cos(ang), sa = sin(ang);
     const sx = 5 + (rnd() * 3 | 0), sz = 5 + (rnd() * 3 | 0), lane = rnd() * 12 | 0;
     for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
       const lx = i * 30 - 165 + rr(-3, 3), lz = j * 30 - 165 + rr(-3, 3), x = dx + lx * ca - lz * sa, z = dz + lx * sa + lz * ca, c = cityAt(x, z);
@@ -543,7 +543,8 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
       const vx = x - HARAM[0], vz = z - HARAM[1], along = vx * ax + vz * az;
       if (t >= 6 && along > 0 && along < 2200 && abs(vx * az - vz * ax) < 170 + along * .05) t = CITY_LOW[(rnd() * 4) | 0];
       const sc = rr(.85, 1.05), yaw = -ang + (rnd() < .5 ? 0 : PI / 2) + rr(-.025, .025);
-      solid(20 + t * 2 + (rnd() < .5 ? 1 : 0), x, fh(x, z) - .5, z, sc, yawQ(yaw), 17, rnd(), litC(x, z), CITY[t][1] * sc);
+      const fy = min(fh(x - 12, z - 12), fh(x + 12, z - 12), fh(x - 12, z + 12), fh(x + 12, z + 12), fh(x, z)) - .6;
+      solid(20 + t * 2 + (rnd() < .5 ? 1 : 0), x, fy, z, sc, yawQ(yaw), 17, rnd(), litC(x, z), CITY[t][1] * sc);
     }
   }
   // the Haram floodlights: a ring of bright lamps on its roof edge
