@@ -76,7 +76,7 @@ fn dens(p: vec3f, gx: f32, gz: f32) -> f32 {
     d = max(d, -ell(lc, vec3f(.4, 5.2, .6), vec3f(4.2, 1.5, 2.8)));
     d = max(d, -ell(lc, vec3f(0., 3., -4.), vec3f(5.5, 4.5, 3.)));
     // the cleft: a narrowing slot under the boulders, closed at the back
-    let wq = 1.05 - max(-lc.z, 0.) * .12 - max(lc.y - 2.3, 0.) * .3;
+    let wq = .62 - max(-lc.z, 0.) * .08 - max(lc.y - 2.3, 0.) * .18;
     let bx = vec3f(abs(lc.x) - wq, abs(lc.y - 2.1) - 2.15, abs(lc.z + 1.6) - 2.4);
     let slot = length(max(bx, vec3f(0.))) + min(max(bx.x, max(bx.y, bx.z)), 0.);
     d = min(d, slot);
@@ -124,19 +124,32 @@ fn smax(a: f32, b: f32, k: f32) -> f32 { let h = max(k - abs(a - b), 0.) / k; re
 // Jabal al-Nour: a broad steep cone carrying a second, steeper knob ("as if two mountains are on top of each other")
 fn jabal(p: vec2f) -> f32 {
   let r = length(p * vec2f(1., 1.1)); let a = atan2(p.y, p.x); let cs = vec2f(cos(a), sin(a));
-  let rr = r * (1. + .09 * sin(a * 3. + 1.) + .05 * sin(a * 5. + 2.));
-  var h = 196. * pow(max(1. - rr / 470., 0.), 1.55);
+  // spurs and gullies: the base radius swings with the bearing, so the foot is lobed rather than round
+  let spur = 1. - abs(fbm(vec3f(cs * 2.2, 3.7), 3) * 2. - 1.);
+  let rr = r * (1. + .09 * sin(a * 3. + 1.) + .05 * sin(a * 5. + 2.) - .22 * (spur - .5));
+  // a broad body with full shoulders, its top pushed off-centre so the two sides of the peak differ
+  let pb = p - vec2f(-30., 20.);
+  let rb = length(pb * vec2f(1., 1.18)) * (1. + .09 * sin(a * 3. + 1.) - .2 * (spur - .5));
+  var h = 150. * pow(max(1. - rb / 500., 0.), 1.25) + 60. * pow(max(1. - rr / 330., 0.), 1.6);
   let k = length((p - vec2f(3., -5.)) * vec2f(1., 1.22));
-  h += 92. * pow(max(1. - pow(k / 115., 1.25), 0.), 1.1);
+  // the summit knob: a rounded crown of piled granite, not a point
+  h += 92. * pow(max(1. - pow(k / 118., 1.45), 0.), .95);
+  // big piled blocks on the upper slopes make the silhouette lumpy instead of a clean cone
+  let tq = vec3f(p.x * .011, 0., p.y * .011) + vec3f(fbm(vec3f(p * .006, 4.), 2), 0., fbm(vec3f(p * .006, 8.), 2)) * 1.2;
+  h += 30. * (.5 - wor(tq)) * ss(25., 70., k) * ss(260., 110., r);
   // ribs and gullies running down the flanks
   let rib = 1. - abs(fbm(vec3f(cs * 5.5, r * .011), 3) * 2. - 1.);
   let s1 = length((p - vec2f(150., -150.)) * mat2x2f(.7, .7, -.7, .7) * vec2f(1., 2.1));
   let s2 = length((p - vec2f(-140., -110.)) * mat2x2f(.8, -.6, .6, .8) * vec2f(1., 2.));
-  h += 52. * pow(max(1. - s1 / 210., 0.), 1.3) + 38. * pow(max(1. - s2 / 190., 0.), 1.3);
-  // great stacked blocks of granite break the cone into crags
-  let bq = vec3f(p.x * .028, 0., p.y * .028) + vec3f(fbm(vec3f(p * .01, 2.), 2), 0., fbm(vec3f(p * .01, 9.), 2)) * 1.5;
-  h += 13. * (.55 - wor(bq)) * ss(10., 60., r) * ss(520., 300., r);
-  h += 11. * (rib - .55) * ss(15., 90., r) * ss(480., 220., r) + 7. * (fbm(vec3f(p * .03, 3.), 3) - .5) * ss(480., 250., r);
+  let s3 = length((p - vec2f(260., 40.)) * mat2x2f(.96, .28, -.28, .96) * vec2f(1., 2.4));
+  h += 52. * pow(max(1. - s1 / 210., 0.), 1.3) + 38. * pow(max(1. - s2 / 190., 0.), 1.3) + 44. * pow(max(1. - s3 / 260., 0.), 1.2);
+  // great stacked blocks of granite break the slopes into crags, larger toward the foot
+  let bq = vec3f(p.x * .022, 0., p.y * .022) + vec3f(fbm(vec3f(p * .01, 2.), 2), 0., fbm(vec3f(p * .01, 9.), 2)) * 1.5;
+  h += 22. * (.55 - wor(bq)) * ss(10., 70., r) * ss(540., 300., r);
+  h += 24. * (rib - .55) * ss(15., 90., r) * ss(500., 220., r) + 9. * (fbm(vec3f(p * .03, 3.), 3) - .5) * ss(480., 250., r);
+  // exfoliation ledges: granite sheets step the mid slopes into short cliffs and benches
+  let lv = h / 17. + 1.6 * fbm(vec3f(p * .012, 5.), 2); let lf = fract(lv);
+  h -= 17. * (lf - ss(.15, .85, lf)) * .55 * ss(70., 150., r) * ss(520., 380., r);
   return h;
 }
 @compute @workgroup_size(8, 8) fn main(@builtin(global_invocation_id) id: vec3u) {
@@ -157,7 +170,7 @@ fn jabal(p: vec2f) -> f32 {
   let n3 = ridged(p + vec2f(77., 31.), .0075, 3);
   let n4 = ridged(p + vec2f(511., 97.), .024, 3);
   var hm = 30. + 360. * pow(n1, 1.8) + 80. * (n2 - .5) + 38. * (n3 - .5) * (.4 + n1) + 20. * (fbm(vec3f(p * .012, 2.), 3) - .5) + 12. * (n4 - .55) * (.3 + n1) * ss(30., 6., u.o.z);
-  hm *= ss(560., 1100., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2)) * mix(.5, 1., ss(1200., 4500., rj));
+  hm *= ss(430., 950., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2)) * mix(.5, 1., ss(1200., 4500., rj));
   let rimR = ss(5500., 10500., length(p - vec2f(-1200., 1500.)));
   hm += rimR * (220. + 380. * pow(ridged(p + vec2f(4000., 0.), .00045, 4), 1.5));
   var h = flo + mix(hm, 2. * (fbm(vec3f(p * .02, 4.), 2) - .5), val * (1. - rimR));
@@ -477,7 +490,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
       alb = mix(alb, alb * vec3f(.6, .58, .56), (1. - wfade) * wall * .4);
       let wc = mix(vec3f(1., .62, .30), vec3f(1., .9, .78), step(.6, hs(bay * 1.7 + sd * 5.)));
       emi = wc * .9 * LIGHTS * (win * lit + (1. - wfade) * wall * step(3.3, fv) * step(fv, top) * litF * .07);
-      alb = mix(alb, mix(vec3f(.30, .29, .27), vec3f(.47, .42, .36), hs(sd * 41.)), ss(.6, .9, on.y));
+      alb = mix(alb, mix(mix(vec3f(.22, .21, .20), vec3f(.44, .39, .33), hs(sd * 41.)), vec3f(.58, .55, .5), step(.82, hs(sd * 23.))) * (.85 + .3 * B.h), ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
     } else {
       let a1 = arcade(fu, fv, 6.5, 8.5, 1.) * wall;

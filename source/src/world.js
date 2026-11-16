@@ -11,6 +11,7 @@ const CITY = [[26, 6.6, 27, 0], [27, 9.9, 26, 0], [24, 13.2, 27, 1], [28, 16.5, 
 const CITY_LOW = [0, 1, 2, 3, 4, 5, 9], NSOLID = 20 + CITY.length * 2;
 const KNOB = [3, -5];
 // bearings are measured from south (+z) toward east (+x): x = r sin(b), z = r cos(b)
+const hs1 = (x) => { const v = sin(x * 127.1) * 43758.5453; return v - floor(v); };
 const polar = (r, b) => [r * sin(b), r * cos(b)];
 const DEG = PI / 180;
 const CAVEB = -40 * DEG, CAVER = 15; // the cave of Hira: below the top on the side facing the Kaaba
@@ -102,7 +103,8 @@ function makePoses(PT, fh) {
   const a = pick(.42), b = pick(.7), s = at(up - 1), c = PT.cave, o = PT.dir;
   // pose 2 stands on the turn of the upper flights that sees furthest toward the Haram
   let best = b, bv = -1e9;
-  for (const i of turns) { const p = P[i]; if (p[1] < s[1] - 95 || p[1] > s[1] - 25) continue; const v = -p[0] * .643 + p[2] * .766; if (v > bv) { bv = v; best = p; } }
+  const roofNear = (p) => P.some((q) => q[4] === 2 && hypot(q[0] - p[0], q[2] - p[2]) < 9);
+  for (const i of turns) { const p = P[i]; if (p[1] < s[1] - 95 || p[1] > s[1] - 25 || roofNear(p)) continue; const v = -p[0] * .643 + p[2] * .766; if (v > bv) { bv = v; best = p; } }
   const term = at(P.length - 1);
   return [
     [a[0], 1.7, a[2], KNOB[0], s[1] - 25, KNOB[1], 0],
@@ -399,7 +401,8 @@ function buildPath(PT, fh) {
     const c = PT.cave, o = PT.dir, ux = -o[2], uz = o[0];
     // an arched dark opening, not a rectangle
     const bx = c[0] - o[0] * 2.9, bz = c[2] - o[2] * 2.9, ctr = voidM.v(bx, c[1] + 1.1, bz, 0), ring = [];
-    for (let k = 0; k <= 20; k++) { const a = k / 20 * TAU, rx = 1.05, ry = a < PI ? 1.45 : 1.3; ring.push(voidM.v(bx + ux * cos(a) * rx, c[1] + 1.1 + sin(a) * ry, bz + uz * cos(a) * rx, 0)); }
+    // a tall narrow gap between the boulders, ragged at the edges
+    for (let k = 0; k <= 20; k++) { const a = k / 20 * TAU, j = k % 20 ? .85 + .3 * hs1(k * 7.3) : 1, rx = .5 * j, ry = (a < PI ? 1.75 : 1.25) * (.92 + .08 * j); ring.push(voidM.v(bx + ux * cos(a) * rx, c[1] + 1.1 + sin(a) * ry, bz + uz * cos(a) * rx, 0)); }
     for (let k = 0; k < 20; k++) { voidM.tri(ctr, ring[k], ring[k + 1]); voidM.tri(ctr, ring[k + 1], ring[k]); }
   }
   return { steps, walls, rails, roof, voidM };
@@ -464,7 +467,7 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
     const q = qRand(), r = rnd();
     if (r < .16 * (1 - gr * .6) && pd > 2.2 && ny > .35) {
       const big = rnd() < .18, sc = big ? rr(1.6, 4.2) : rr(.4, 1.6);
-      if (nearFly(x, y, z, sc + 3)) continue;
+      if (nearFly(x, y, z, sc + 3) || (big && nearPose(x, z, 9 + sc * 2))) continue;
       solid(big ? 2 : (rnd() < .5 ? 0 : 1), x - T.wn[k] * sc * .35, y - ny * sc * .4, z - T.wn[k + 2] * sc * .35, sc, q, rnd() < .65 ? 2 : 3, rnd(), 0, 0);
     } else if (r < .42 && ny > .5) {
       const sc = .12 + .45 * pow(rnd(), 2);
@@ -491,10 +494,12 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
   rseed(15);
   {
     const ux = -cdir[2], uz = cdir[0];
-    for (const [s, f, sc] of [[-3.6, 4.6, .9], [3.9, 5.2, 1.1]]) {
+    for (const [s, f, sc] of [[-3.6, 4.6, .9], [3.9, 5.2, 1.1], [-2.5, .9, 2.3], [2.6, 1.3, 2.5], [-4.6, -.6, 2.8], [4.8, -.2, 2.6]]) {
       const x = cv[0] + ux * s + cdir[0] * f, z = cv[2] + uz * s + cdir[2] * f;
       solid(2, x, gy(x, z) - sc * .35, z, sc, qRand(), 2, rnd(), 0, 0);
     }
+    // a capstone leaning over the gap, as in the stacked rocks that roof the cave
+    { const x = cv[0] + cdir[0] * .6 + ux * .3, z = cv[2] + cdir[2] * .6 + uz * .3; solid(2, x, cv[1] + 3.5, z, 2.5, qRand(), 2, rnd(), 0, 0); }
   }
 
   // --- a few thorny shrubs in the gullies (the mountain is almost bare)
@@ -536,13 +541,14 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
       if (max(abs(x - HARAM[0]), abs(z - HARAM[1])) < 240 || (abs(x - HARAM[0]) < 160 && z - HARAM[1] < -150 && z - HARAM[1] > -440)) continue;
       if (max(abs(x - CLOCK[0]) - 160, abs(z - CLOCK[1]) - 120) < 0) continue;
       const dm = hypot(x - HARAM[0], z - HARAM[1]);
-      let t = CITY_LOW[(rnd() * CITY_LOW.length) | 0];
+      // mostly four to six storeys, as the apartment blocks that fill Makkah's valleys are, with low houses mixed in
+      let t = rnd() < .55 ? [2, 3, 5][(rnd() * 3) | 0] : CITY_LOW[(rnd() * CITY_LOW.length) | 0];
       if (dm < 900 && rnd() < .55) t = rnd() < .5 ? 6 : rnd() < .8 ? 7 : 8;
       else if (dm < 2200 && rnd() < .22) t = rnd() < .7 ? 5 : 6;
       // keep the sight line from the mountain to the Haram low
       const vx = x - HARAM[0], vz = z - HARAM[1], along = vx * ax + vz * az;
       if (t >= 6 && along > 0 && along < 2200 && abs(vx * az - vz * ax) < 170 + along * .05) t = CITY_LOW[(rnd() * 4) | 0];
-      const sc = rr(.85, 1.05), yaw = -ang + (rnd() < .5 ? 0 : PI / 2) + rr(-.025, .025);
+      const sc = rr(.95, 1.12), yaw = -ang + (rnd() < .5 ? 0 : PI / 2) + rr(-.025, .025);
       const fy = min(fh(x - 12, z - 12), fh(x + 12, z - 12), fh(x - 12, z + 12), fh(x + 12, z + 12), fh(x, z)) - .6;
       solid(20 + t * 2 + (rnd() < .5 ? 1 : 0), x, fy, z, sc, yawQ(yaw), 17, rnd(), litC(x, z), CITY[t][1] * sc);
     }
