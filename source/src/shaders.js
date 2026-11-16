@@ -130,6 +130,9 @@ fn jabal(p: vec2f) -> f32 {
   h += 92. * pow(max(1. - pow(k / 115., 1.25), 0.), 1.1);
   // ribs and gullies running down the flanks
   let rib = 1. - abs(fbm(vec3f(cs * 5.5, r * .011), 3) * 2. - 1.);
+  let s1 = length((p - vec2f(150., -150.)) * mat2x2f(.7, .7, -.7, .7) * vec2f(1., 2.1));
+  let s2 = length((p - vec2f(-140., -110.)) * mat2x2f(.8, -.6, .6, .8) * vec2f(1., 2.));
+  h += 52. * pow(max(1. - s1 / 210., 0.), 1.3) + 38. * pow(max(1. - s2 / 190., 0.), 1.3);
   h += 24. * (rib - .55) * ss(15., 90., r) * ss(480., 220., r) + 7. * (fbm(vec3f(p * .03, 3.), 3) - .5) * ss(480., 250., r);
   return h;
 }
@@ -145,14 +148,16 @@ fn jabal(p: vec2f) -> f32 {
     vd = min(vd, s - VW[k]); rd = min(rd, s);
   }
   let wig = 70. * (fbm(vec3f(p * .0025, 7.), 3) - .5);
-  let val = ss(160., 0., vd + wig);
+  let val = ss(300., 0., vd + wig);
   // bare granite ranges: sharp ridges and peaks 150-400 m above the valleys, kept clear around Jabal al-Nour
   let n1 = ridged(p + vec2f(1300., 400.), .00085, 5); let n2 = ridged(p + vec2f(300., 900.), .0027, 4);
   let n3 = ridged(p + vec2f(77., 31.), .0075, 3);
   let n4 = ridged(p + vec2f(511., 97.), .024, 3);
   var hm = 30. + 360. * pow(n1, 1.8) + 80. * (n2 - .5) + 38. * (n3 - .5) * (.4 + n1) + 20. * (fbm(vec3f(p * .012, 2.), 3) - .5) + 12. * (n4 - .55) * (.3 + n1) * ss(30., 6., u.o.z);
   hm *= ss(560., 1100., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2));
-  var h = flo + mix(hm, 2. * (fbm(vec3f(p * .02, 4.), 2) - .5), val);
+  let rimR = ss(5500., 10500., length(p - vec2f(-1200., 1500.)));
+  hm += rimR * (220. + 380. * pow(ridged(p + vec2f(4000., 0.), .00045, 4), 1.5));
+  var h = flo + mix(hm, 2. * (fbm(vec3f(p * .02, 4.), 2) - .5), val * (1. - rimR));
   h = smax(h, flo + 4. + jabal(p) * ss(800., 560., rj), 40.);
   // piles of rounded granite blocks on every slope (only where the grid is fine enough to hold them)
   let rk = ss(3., 25., h - flo) * ss(8., 3., u.o.z) * ss(6., 30., distance(p, vec2f(3., -5.)));
@@ -161,7 +166,7 @@ fn jabal(p: vec2f) -> f32 {
   let plaza = step(abs(x - HAR.x), 230.) * step(abs(z - HAR.y), 260.);
   h = mix(h, -40., plaza);
   let rise = h - flo;
-  let city = ss(.25, .7, val) * ss(9000., 6000., dh) * ss(430., 520., rj) * ss(40., 10., rise);
+  let city = ss(.25, .7, val) * ss(9000., 6000., dh) * ss(430., 520., rj) * ss(16., 4., rise);
   let road = ss(22., 12., rd) * city;
   let gravel = ss(.5, .72, fbm(vec3f(p * .021, 12.), 3)) * (1. - city);
   A[id.x + u.n.x * id.y] = vec4f(h, 1. - city, gravel, val);
@@ -274,7 +279,7 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
   let hor = mix(HORF, HORL, tw * tw);
   var c = mix(hor, ZEN, pow(y, .5));
   c += GLOW * .35 * pow(sat(1. - y * 4.), 3.) * tw * tw * tw;
-  if (!NIGHT) { c += SUNC * (.04 * pow(max(mu, 0.), 5.) + .12 * pow(max(mu, 0.), 40.) + .3 * pow(max(mu, 0.), 500.)); }
+  if (!NIGHT) { c += SUNC * (.025 * pow(max(mu, 0.), 5.) + .07 * pow(max(mu, 0.), 40.) + .25 * pow(max(mu, 0.), 500.)); }
   let ch = .45 + .55 * pow(max(dot(h / hl, normalize(HAR)), 0.), 3.);
   c += CITYG * pow(sat(1. - y * 7.), 4.) * ch;
   return mix(c, mix(GNDF, GNDL, tw) + CITYG * .4 * ch, sat(-rd.y * 5.));
@@ -289,7 +294,7 @@ fn aerialSh(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f, sh: f32) -> vec3f {
   let od2 = select((1. - exp(-k2 * d)) / k2, d, abs(k2) < 1e-7) * exp(-max(cam.y + 30., -30.) / 60.);
   let T = exp(-BETA * od - vec3f(1.5e-4, 1.6e-4, 1.75e-4) * MIST * od2);
   let ins = mix(skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun), FARH, ss(900., 7000., d) * .4);
-  return c * T + ins * (1. - T) * mix(.5, 1., sh);
+  return c * T + ins * (1. - T) * mix(vec3f(.30, .36, .52), vec3f(1.), sh);
 }
 fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f {
   let v = wp - cam; let d = max(length(v), 1e-3); let rd = v / d;
@@ -419,10 +424,10 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let rock = mix(fm.r, nm.g, nk); let grav = mix(fm.g, nm.r, nk); let city = fm.b * (1. - nk);
     let plaza = ss(.75, .9, fm.a) * (1. - nk); let road = ss(.3, .45, fm.a) * (1. - plaza) * (1. - nk);
     alb = granite(A, B, C, Lg, flt, 0.) * select(1., mix(.78, 1., ss(3000., 9000., dist)), far);
-    alb = mix(alb, vec3f(.30, .25, .20) * (.85 + .3 * C.h), sat(max(flt * ss(.6, .85, Lg.a + .3 * B.c) * .3, grav * (.15 + .35 * flt))) * rock);
+    alb = mix(alb, vec3f(.30, .25, .20) * (.85 + .3 * C.h), sat(max(flt * ss(.6, .85, Lg.a + .3 * B.c) * select(.3, .12, far), grav * (.15 + .35 * flt))) * rock);
     alb *= mix(1., .6 + .8 * F.h, fk);
     let street = mix(vec3f(.14, .135, .13) * (.9 + .15 * C.c), vec3f(.26, .24, .21) * (.9 + .12 * B.c), ss(.5, .75, Lg.a));
-    alb = mix(alb, street, ss(.05, .3, city));
+    alb = mix(alb, street * (.9 + .2 * B.h), ss(.05, .3, city));
     alb = mix(alb, vec3f(.13, .13, .14) * (.9 + .2 * B.c), road * .85);
     let tile = 1. - ss(.0, .05, min(abs(fract(i.wp.x / 6.) - .5), abs(fract(i.wp.z / 6.) - .5)) * 2. - .86);
     alb = mix(alb, vec3f(.86, .85, .82) * (1. - .1 * tile), plaza);
@@ -437,7 +442,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     // concrete steps: pale treads worn smooth in the middle, darker risers, dust in the corners
     let top = ss(.6, .85, on.y);
         let jn = max(ss(.88, .97, abs(fract(i.wp.x / .6 + hs(floor(i.wp.z / .6)) * .5) - .5) * 2.), ss(.88, .97, abs(fract(i.wp.z / .6) - .5) * 2.)) * top * wfade;
-    alb = mix(vec3f(.30, .24, .18), vec3f(.40, .32, .24), top) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .3 * jn);
+    alb = mix(vec3f(.30, .23, .16), vec3f(.42, .32, .22), top) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .15 * jn);
     alb = mix(alb, vec3f(.46, .38, .29), ss(.5, .8, Lg.a + .25 * B.c) * .45);
     bump = .12; gloss = .05;
   } else if (mat == 6) {
@@ -460,14 +465,14 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
       let wx = fract(fu / bw); let wy = fract(fv / 3.3); let flr = floor(fv / 3.3); let bay = floor(fu / bw);
       let top = i.m.w - 1.;
       let win = step(.5 - ww, wx) * step(wx, .5 + ww) * step(.3, wy) * step(wy, .74) * step(1., flr) * wall * step(fv, top) * wfade * step(.15, hs(bay * 3.1 + flr * 5.7 + sd));
-      let litF = select(select(.07, .14, LIGHTS > .5), .5, NIGHT);
+      let litF = select(select(.07, .14, LIGHTS > .5), .38, NIGHT);
       let lit = step(1. - litF, hs(flr * 13.1 + bay * 7.7 + sd * 31.));
       alb = mix(alb, vec3f(.05, .055, .06), win * .85);
       alb *= 1. - .1 * ss(.06, .0, abs(fract(fv / 3.3))) * wall * step(1., flr) * wfade;
       alb *= mix(.82, 1., ss(0., 6., fv));
       alb = mix(alb, alb * vec3f(.6, .58, .56), (1. - wfade) * wall * .4);
       let wc = mix(vec3f(1., .62, .30), vec3f(1., .9, .78), step(.6, hs(bay * 1.7 + sd * 5.)));
-      emi = wc * .9 * LIGHTS * (win * lit + (1. - wfade) * wall * step(3.3, fv) * step(fv, top) * litF * .16);
+      emi = wc * .9 * LIGHTS * (win * lit + (1. - wfade) * wall * step(3.3, fv) * step(fv, top) * litF * .07);
       alb = mix(alb, alb * vec3f(.5, .47, .45), ss(.6, .9, on.y));
       gloss = mix(.08, .55, win);
     } else {
@@ -498,7 +503,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     emi = (mix(vec3f(.05, .9, .25) * .25, vec3f(1., 1., .96) * .5 * (1. - max(tick, hand)), dial)) * LIGHTS * (.5 + .5 * f32(NIGHT));
     gloss = .3; bump = 0.;
   } else if (mat == 9) {
-    alb = vec3f(.22, .27, .25) * (.85 + .3 * B.h); gloss = .35; metal = .3; bump = .1;
+    alb = vec3f(.15, .17, .15) * (.85 + .3 * B.h); gloss = .18; metal = .1; bump = .1;
   } else if (mat == 10) {
     alb = vec3f(1., .70, .28); gloss = .9; metal = 1.; bump = 0.;
     emi = vec3f(1., .75, .35) * .12 * LIGHTS * f32(NIGHT);
@@ -509,7 +514,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     let band = step(9., fv) * step(fv, 10.2) * wall;
     alb = mix(vec3f(.016, .016, .018), vec3f(.55, .42, .16), band); gloss = mix(.05, .6, band); bump = 0.;
   }
-  let N = normalize(qrot(i.q, normalize(on + (A.n * .8 + B.n * .6 + C.n * .4 * ss(70., 10., dist) + F.n * .5 * fk) * bump)));
+  let N = normalize(qrot(i.q, normalize(on + (A.n * .8 + B.n * .6 * select(1., ss(400., 80., dist), far) + C.n * .4 * ss(70., 10., dist) + F.n * .5 * fk) * bump)));
   let L = g.sun.xyz; let V = normalize(g.cam.xyz - i.wp);
   let vv = vol(i.wp + n0 * 1.2); let v2 = vol(i.wp + n0 * 4.);
   var ao = (sat((vv.x - .5) * 6.) * .5 + sat((v2.x - .5) * 2.5) * .5) * vao * mix(1., i.ao, f32(mat == 1));
@@ -666,7 +671,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) uv: vec2f, @location(1) @
   let sz = .006 + .02 * a.w * a.w * a.w;
   let w = p + (g.right.xyz * q.x + g.up.xyz * q.y) * max(sz, d * .0016);
   o.cp = g.vp * vec4f(w, 1.); o.uv = q;
-  let fade = ss(B * .5, B * .3, d) * ss(.4, 2., d) * min(1., sz / (d * .0016)) * .22;
+  let fade = ss(B * .5, B * .3, d) * ss(.4, 2., d) * min(1., sz / (d * .0016)) * .08;
   let mu = dot(normalize(p - g.cam.xyz), g.sun.xyz);
   let ph = .15 + 2.2 * pow(max(mu, 0.), 6.);
   o.pr = vec4f(fade * ph * shadow1(p), a.w, 0., 0.);

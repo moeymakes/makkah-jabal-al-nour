@@ -105,7 +105,7 @@ function makePoses(PT, fh) {
   for (const i of turns) { const p = P[i]; if (p[1] < s[1] - 95 || p[1] > s[1] - 25) continue; const v = -p[0] * .643 + p[2] * .766; if (v > bv) { bv = v; best = p; } }
   const term = at(P.length - 1);
   return [
-    [a[0], 1.7, a[2], KNOB[0], s[1] + 8, KNOB[1], 0],
+    [a[0], 1.7, a[2], KNOB[0], s[1] - 25, KNOB[1], 0],
     [best[0], 1.7, best[2], HARAM[0], -10, HARAM[1], 0],
     [s[0] + 1, 1.7, s[2] + 3.5, 120, 120, 420, 0],
     [term[0] + o[0] * 1.5 + o[2] * .8, 1.7, term[2] + o[2] * 1.5 - o[0] * .8, c[0], c[1] + 1.3, c[2], 0],
@@ -466,10 +466,10 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
       const big = rnd() < .18, sc = big ? rr(1.6, 4.2) : rr(.4, 1.6);
       if (nearFly(x, y, z, sc + 3)) continue;
       solid(big ? 2 : (rnd() < .5 ? 0 : 1), x - T.wn[k] * sc * .35, y - ny * sc * .4, z - T.wn[k + 2] * sc * .35, sc, q, rnd() < .65 ? 2 : 3, rnd(), 0, 0);
-    } else if (r < .42) {
+    } else if (r < .42 && ny > .5) {
       const sc = .12 + .45 * pow(rnd(), 2);
       if (!(nth++ % THIN)) solid(rnd() < .5 ? 3 : 4, x, y - sc * .25, z, sc, q, rnd() < .5 ? 2 : 4, rnd(), 90, 0);
-    } else if (r < .42 + .3 * (gr + ny * .5)) {
+    } else if (ny > .5 && r < .42 + .3 * (gr + ny * .5)) {
       const sc = .04 + .12 * pow(rnd(), 2);
       if (!(nth++ % THIN)) solid(rnd() < .6 ? 7 : 5, x, y - sc * .2, z, sc, q, 4, rnd(), 40, 0);
     }
@@ -532,7 +532,7 @@ function makeWorld(D, T, NA, MID, FAR, flyPts, PT, fh) {
       const lx = i * 30 - 165 + rr(-3, 3), lz = j * 30 - 165 + rr(-3, 3), x = dx + lx * ca - lz * sa, z = dz + lx * sa + lz * ca, c = cityAt(x, z);
       const street = i % sx === 0 || j % sz === 0 || (i === lane && j > 6);
       if (street) { if (c > .3 && rnd() < .7) lamps.push(x + rr(-6, 6), fh(x, z) + 7, z + rr(-6, 6), rnd()); continue; }
-      if (c < .08 || rnd() > min(1, c * 2.4) || rnd() < .05) continue;
+      if (c < .06 || rnd() > min(1, c * 4) || rnd() < .03) continue;
       if (max(abs(x - HARAM[0]), abs(z - HARAM[1])) < 240 || (abs(x - HARAM[0]) < 160 && z - HARAM[1] < -150 && z - HARAM[1] > -440)) continue;
       if (max(abs(x - CLOCK[0]) - 160, abs(z - CLOCK[1]) - 120) < 0) continue;
       const dm = hypot(x - HARAM[0], z - HARAM[1]);

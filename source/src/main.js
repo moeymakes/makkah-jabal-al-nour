@@ -251,7 +251,7 @@ const ibSolids = buf(solidData, BU.VERTEX);
 const ibCell = Wd.cells.map((c) => buf(c.data, BU.VERTEX));
 const ibSmall = buf(new Uint8Array(Wd.small.buf), BU.VERTEX);
 const ibBirds = buf(Wd.birds, BU.VERTEX), nBirds = Wd.nBirds, ibMotes = buf(Wd.motes, BU.VERTEX), nMotes = Wd.motes.length / 4;
-const ibLamps = buf(Wd.lamps, BU.VERTEX), nLamps = Wd.lamps.length / 4, LAMPS = NIGHT || TOD === 0;
+const ibLamps = buf(Wd.lamps, BU.VERTEX), nLamps = Wd.lamps.length / 4, LAMPS = NIGHT;
 const BIRD = meshes[NSOLID];
 Q.writeTexture({ texture: tVol }, Wd.volD, { bytesPerRow: NX, rowsPerImage: NY / 2 }, [NX / 2, NY / 2, NZ / 2]);
 Q.writeTexture({ texture: tNear }, Wd.nm, { bytesPerRow: NX * 4 }, [NX, NZ]);
