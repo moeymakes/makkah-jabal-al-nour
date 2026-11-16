@@ -149,7 +149,8 @@ fn jabal(p: vec2f) -> f32 {
   // bare granite ranges: sharp ridges and peaks 150-400 m above the valleys, kept clear around Jabal al-Nour
   let n1 = ridged(p + vec2f(1300., 400.), .00085, 5); let n2 = ridged(p + vec2f(300., 900.), .0027, 4);
   let n3 = ridged(p + vec2f(77., 31.), .0075, 3);
-  var hm = 30. + 360. * pow(n1, 1.8) + 80. * (n2 - .5) + 38. * (n3 - .5) * (.4 + n1) + 20. * (fbm(vec3f(p * .012, 2.), 3) - .5);
+  let n4 = ridged(p + vec2f(511., 97.), .024, 3);
+  var hm = 30. + 360. * pow(n1, 1.8) + 80. * (n2 - .5) + 38. * (n3 - .5) * (.4 + n1) + 20. * (fbm(vec3f(p * .012, 2.), 3) - .5) + 12. * (n4 - .55) * (.3 + n1) * ss(30., 6., u.o.z);
   hm *= ss(560., 1100., rj) * (.75 + .5 * fbm(vec3f(p * .0004, 9.), 2));
   var h = flo + mix(hm, 2. * (fbm(vec3f(p * .02, 4.), 2) - .5), val);
   h = smax(h, flo + 4. + jabal(p) * ss(800., 560., rj), 40.);
@@ -280,6 +281,16 @@ fn skyCol(rd: vec3f, sun: vec3f) -> vec3f {
 }
 // aerial perspective: exponential-height haze integrated in closed form along the view ray, plus a thin low layer
 // that pools in the valleys (thicker at dawn); distant things fade to the sky's horizon colour in their direction
+fn aerialSh(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f, sh: f32) -> vec3f {
+  let v = wp - cam; let d = max(length(v), 1e-3); let rd = v / d;
+  let k = rd.y / HSCALE;
+  let od = select((1. - exp(-k * d)) / k, d, abs(k) < 1e-7) * exp(-max(cam.y, -60.) / HSCALE);
+  let k2 = rd.y / 60.;
+  let od2 = select((1. - exp(-k2 * d)) / k2, d, abs(k2) < 1e-7) * exp(-max(cam.y + 30., -30.) / 60.);
+  let T = exp(-BETA * od - vec3f(1.5e-4, 1.6e-4, 1.75e-4) * MIST * od2);
+  let ins = mix(skyCol(normalize(vec3f(rd.x, max(rd.y, 0.) * .3 + .012, rd.z)), sun), FARH, ss(900., 7000., d) * .4);
+  return c * T + ins * (1. - T) * mix(.5, 1., sh);
+}
 fn aerialAt(c: vec3f, cam: vec3f, wp: vec3f, sun: vec3f) -> vec3f {
   let v = wp - cam; let d = max(length(v), 1e-3); let rd = v / d;
   let k = rd.y / HSCALE;
@@ -378,13 +389,14 @@ fn arcade(u: f32, v: f32, bw: f32, ah: f32, v0: f32) -> f32 {
 fn segDist(p: vec2f, b: vec2f) -> f32 { let h = clamp(dot(p, b) / dot(b, b), 0., 1.); return length(p - b * h); }
 // granite: dark weathered stone with rust stains, desert varnish on steep faces, pale dust on ledges
 fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
-  var a = mix(vec3f(.19, .155, .125), vec3f(.31, .255, .205), sat(A.c * .9 + Lg.a * .9 - .55 + k)) * (.7 + .45 * mix(B.h, Lg.b, .45)) * (.84 + .32 * C.c);
-  a = mix(a, vec3f(.34, .20, .12) * (.8 + .4 * B.h), ss(.55, .85, Lg.a + .25 * A.h - .1) * .35);
+  var a = mix(vec3f(.105, .088, .074), vec3f(.205, .17, .142), sat(A.c * .9 + Lg.a * .9 - .55 + k)) * (.7 + .45 * mix(B.h, Lg.b, .45)) * (.84 + .32 * C.c);
+  a = mix(a, vec3f(.27, .16, .10) * (.8 + .4 * B.h), ss(.55, .85, Lg.a + .25 * A.h - .1) * .35);
+  a *= .75 + .5 * ss(.2, .8, A.h);
   a *= mix(1., .7, (1. - flt) * ss(.4, .75, B.c + .2 * C.h));
   return a;
 }
 @fragment fn fs(i: VO, @builtin(front_facing) ff: bool) -> @location(0) vec4f {
-  let mat = i32(i.m.x + .5); let sd = i.m.y; let fl_ = select(-1., 1., ff);
+  let mat = i32(i.m.x + .5); let sd = i.m.y; let fl_ = select(select(-1., 1., ff), 1., mat == 1);
   let on = normalize(i.on) * fl_; let n0 = normalize(i.n) * fl_;
   let dist = length(i.wp - g.cam.xyz);
   let far = mat == 1;
@@ -406,16 +418,16 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
   if (mat <= 1) {
     let rock = mix(fm.r, nm.g, nk); let grav = mix(fm.g, nm.r, nk); let city = fm.b * (1. - nk);
     let plaza = ss(.75, .9, fm.a) * (1. - nk); let road = ss(.3, .45, fm.a) * (1. - plaza) * (1. - nk);
-    alb = granite(A, B, C, Lg, flt, select(0., .05, far));
-    alb = mix(alb, vec3f(.44, .37, .29) * (.85 + .3 * C.h), sat(max(flt * ss(.55, .8, Lg.a + .3 * B.c) * .45, grav * (.3 + .5 * flt))) * rock);
+    alb = granite(A, B, C, Lg, flt, 0.) * select(1., mix(.78, 1., ss(3000., 9000., dist)), far);
+    alb = mix(alb, vec3f(.30, .25, .20) * (.85 + .3 * C.h), sat(max(flt * ss(.6, .85, Lg.a + .3 * B.c) * .3, grav * (.15 + .35 * flt))) * rock);
     alb *= mix(1., .6 + .8 * F.h, fk);
-    let street = mix(vec3f(.36, .35, .34) * (.9 + .15 * C.c), vec3f(.58, .54, .48) * (.9 + .12 * B.c), ss(.4, .65, Lg.a));
+    let street = mix(vec3f(.14, .135, .13) * (.9 + .15 * C.c), vec3f(.26, .24, .21) * (.9 + .12 * B.c), ss(.5, .75, Lg.a));
     alb = mix(alb, street, ss(.05, .3, city));
     alb = mix(alb, vec3f(.13, .13, .14) * (.9 + .2 * B.c), road * .85);
     let tile = 1. - ss(.0, .05, min(abs(fract(i.wp.x / 6.) - .5), abs(fract(i.wp.z / 6.) - .5)) * 2. - .86);
     alb = mix(alb, vec3f(.86, .85, .82) * (1. - .1 * tile), plaza);
     emi = vec3f(1., .85, .7) * .04 * LIGHTS * plaza;
-    bump = select(1.3, mix(.35, .15, ss(.05, .3, city)), far); gloss = .04;
+    bump = select(1.3, mix(mix(1.1, .4, ss(800., 4000., dist)), .15, ss(.05, .3, city)), far); gloss = .04;
   } else if (mat == 2 || mat == 3) {
     alb = granite(A, B, C, Lg, flt, select(-.05, .12, mat == 3)) * (.75 + .5 * hs(sd * 7.));
     bump = 1.5; gloss = .05;
@@ -425,7 +437,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
     // concrete steps: pale treads worn smooth in the middle, darker risers, dust in the corners
     let top = ss(.6, .85, on.y);
         let jn = max(ss(.88, .97, abs(fract(i.wp.x / .6 + hs(floor(i.wp.z / .6)) * .5) - .5) * 2.), ss(.88, .97, abs(fract(i.wp.z / .6) - .5) * 2.)) * top * wfade;
-    alb = mix(vec3f(.28, .22, .17), vec3f(.37, .30, .23), top) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .3 * jn);
+    alb = mix(vec3f(.30, .24, .18), vec3f(.40, .32, .24), top) * (.85 + .25 * B.h) * (.92 + .12 * C.c) * (1. - .3 * jn);
     alb = mix(alb, vec3f(.46, .38, .29), ss(.5, .8, Lg.a + .25 * B.c) * .45);
     bump = .12; gloss = .05;
   } else if (mat == 6) {
@@ -440,7 +452,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
   } else if (mat == 7 || mat == 14 || mat == 17) {
     // the Haram's white stone (7), the clock tower's stone (14), the city (17) with windows by floor
     let hh = hs(sd * 3.7);
-    let ct = select(select(select(select(vec3f(.50, .45, .38), vec3f(.42, .38, .33), hh > .3), vec3f(.58, .57, .55), hh > .55), vec3f(.46, .37, .28), hh > .78), vec3f(.36, .35, .34), hh > .9);
+    let ct = select(select(select(select(select(vec3f(.56, .47, .36), vec3f(.44, .40, .35), hh > .22), vec3f(.62, .61, .58), hh > .45), vec3f(.50, .36, .26), hh > .66), vec3f(.38, .37, .36), hh > .8), vec3f(.60, .53, .42), hh > .92);
     let tone = select(select(vec3f(.88, .87, .84), vec3f(.66, .62, .55), mat == 14), ct, mat == 17);
     alb = tone * (.86 + .2 * B.h) * (.94 + .1 * C.c) * select(1., .82, mat == 17);
     if (mat != 7) {
@@ -515,7 +527,7 @@ fn granite(A: TP, B: TP, C: TP, Lg: vec4f, flt: f32, k: f32) -> vec3f {
   let spc = mix(vec3f(.04), alb, metal);
   c += E * spc * pow(sat(dot(N, Hh)), mix(8., 120., gloss)) * gloss * ndl * 4.;
   c += skyCol(reflect(-V, N), L) * ao * spc * gloss * pow(1. - sat(dot(N, V)), 3.) * 1.5;
-  return fin(aerial(c, i.wp));
+  return fin(aerialSh(c, g.cam.xyz, i.wp, L, select(1., sh, mat <= 1 || mat >= 7)));
 }
 `;
 // ---------------------------------------------------------------- dry shrubs and thorn bushes

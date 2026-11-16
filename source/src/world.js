@@ -107,7 +107,7 @@ function makePoses(PT, fh) {
   return [
     [a[0], 1.7, a[2], KNOB[0], s[1] + 8, KNOB[1], 0],
     [best[0], 1.7, best[2], HARAM[0], -10, HARAM[1], 0],
-    [s[0] - 1.5, 1.7, s[2] + .8, -700, 120, -250, 0],
+    [s[0] + 1, 1.7, s[2] + 3.5, 120, 120, 420, 0],
     [term[0] + o[0] * 1.5 + o[2] * .8, 1.7, term[2] + o[2] * 1.5 - o[0] * .8, c[0], c[1] + 1.3, c[2], 0],
     [c[0] + o[0] * 3 - o[2] * 1.6, 1.7, c[2] + o[2] * 3 + o[0] * 1.6, CLOCK[0], 220, CLOCK[1], 0],
     [420, 560, -330, -1000, 30, 1150, 1],
@@ -123,13 +123,14 @@ function makeFly(PT, fh) {
     const p = T(f), q = T(min(f + .14, 1)), g = max(fh(p[0], p[2]), p[1]);
     add(p[0], g + 12, p[2], q[0], q[1] + 4, q[2]);
   }
-  add(s[0] + 6, s[1] + 8, s[2] + 9, HARAM[0], 0, HARAM[1]);
-  add(c[0] + o[0] * 9, c[1] + 4, c[2] + o[2] * 9, c[0], c[1] + 1.5, c[2]);
-  add(c[0] + o[0] * 26, c[1] + 6, c[2] + o[2] * 26, c[0], c[1] + 2, c[2]);
-  add(c[0] + o[0] * 70 - 30, c[1] + 25, c[2] + o[2] * 70 + 20, c[0], c[1], c[2]);
-  add(-120, 330, 150, 0, 260, 0);
-  add(80, 430, -60, -900, 40, 1000);
-  add(260, 520, -250, -1000, 30, 1150);
+  add(s[0] + 4, s[1] + 16, s[2] + 10, HARAM[0], 0, HARAM[1]);
+  add(c[0] + o[0] * 16, c[1] + 12, c[2] + o[2] * 16, c[0], c[1] + 1.5, c[2]);
+  add(c[0] + o[0] * 30, c[1] + 8, c[2] + o[2] * 30, c[0], c[1] + 2, c[2]);
+  add(c[0] + o[0] * 75 - 30, c[1] + 20, c[2] + o[2] * 75 + 20, CLOCK[0], 200, CLOCK[1]);
+  add(-240, 290, 120, HARAM[0], 0, HARAM[1]);
+  add(-330, 300, -120, 0, 230, 0);
+  add(-150, 360, -380, 0, 220, 0);
+  add(180, 450, -420, -600, 60, 700);
   add(420, 560, -330, -1000, 30, 1150);
   return new Float32Array(K);
 }
@@ -180,7 +181,7 @@ function buildFar(fh) {
       let nx = fh(x - e, z) - fh(x + e, z), ny = 2 * e, nz = fh(x, z - e) - fh(x, z + e); const l = hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
       // soft heightfield shadow: march toward the light and keep the smallest clearance over the terrain
       let sh = 1;
-      for (let t = 8; t < 6000; t *= 1.08) { const c = h + 4 + t * tn - fh(x + sx / sl * t, z + sz / sl * t); if (c < 0) { sh = 0; break; } sh = min(sh, c / (t * .05 + 4)); }
+      for (let t = 20; t < 7000; t *= 1.07) { const c = h + 4 + t * tn - fh(x + sx / sl * t, z + sz / sl * t); if (c < 0) { sh = 0; break; } sh = min(sh, c / (t * .05 + 4)); }
       vf[k * 4] = x; vf[k * 4 + 1] = h; vf[k * 4 + 2] = z;
       v8[k * 16 + 12] = round(nx * 127); v8[k * 16 + 13] = round(ny * 127); v8[k * 16 + 14] = round(nz * 127); v8[k * 16 + 15] = round(clamp(sh, 0, 1) * 127);
     }
@@ -336,7 +337,7 @@ function meshBird() {
 function buildPath(PT, fh) {
   const P = PT.P, steps = new Mesh(), walls = new Mesh(), rails = new Mesh(), roof = new Mesh(), voidM = new Mesh();
   rseed(20);
-  const slab = (x, z, ux, uz, hl, hw, y) => obox(steps, x, z, ux, uz, hl, hw, y - .7, y + .1);
+  const slab = (x, z, ux, uz, hl, hw, y) => obox(steps, x, z, ux, uz, hl, hw, y - .7, y - .1);
   for (let i = 0; i + 1 < P.length; i++) {
     const a = P[i], b = P[i + 1], L = hypot(b[0] - a[0], b[2] - a[2]), ux = (b[0] - a[0]) / L, uz = (b[2] - a[2]) / L, dy = b[1] - a[1], hw = min(a[3], b[3]);
     if (abs(dy) / L < .05) { slab((a[0] + b[0]) / 2, (a[2] + b[2]) / 2, ux, uz, L / 2 + .3, hw, (a[1] + b[1]) / 2); continue; }
@@ -396,7 +397,10 @@ function buildPath(PT, fh) {
   // the dark inside of the cave, seen through the mouth
   {
     const c = PT.cave, o = PT.dir, ux = -o[2], uz = o[0];
-    obox(voidM, c[0] - o[0] * 3.4, c[2] - o[2] * 3.4, ux, uz, 1.4, .1, c[1] - .2, c[1] + 2.6, 0);
+    // an arched dark opening, not a rectangle
+    const bx = c[0] - o[0] * 2.9, bz = c[2] - o[2] * 2.9, ctr = voidM.v(bx, c[1] + 1.1, bz, 0), ring = [];
+    for (let k = 0; k <= 20; k++) { const a = k / 20 * TAU, rx = 1.05, ry = a < PI ? 1.45 : 1.3; ring.push(voidM.v(bx + ux * cos(a) * rx, c[1] + 1.1 + sin(a) * ry, bz + uz * cos(a) * rx, 0)); }
+    for (let k = 0; k < 20; k++) { voidM.tri(ctr, ring[k], ring[k + 1]); voidM.tri(ctr, ring[k + 1], ring[k]); }
   }
   return { steps, walls, rails, roof, voidM };
 }
