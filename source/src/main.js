@@ -467,12 +467,12 @@ function frame(now) {
   let dt = dtr / 1000; if (dt > 0.1) dt = 0.1;
   // dynamic resolution for 60 fps: every 2 s (0.4 s behind the menu) scale the load by k. Every resize rebuilds all
   // render targets (a visible hitch), so small corrections are ignored and upward probes are rare.
-  if (dtr < 1e3 && (dynT += dtr) > 0 && (dynN++, dynT > (menu ? 400 : 2000))) {
+  if (dtr < 1e3 && (dynT += dtr) > 0 && (dynN++, dynT > (menu ? 1000 : 2000))) {
     const a = dynT / dynN, g = dynGN ? dynG / dynGN : 0; let k = 1;
     if (g) { if (g > 13.6 || g < 9.8) k = 11.7 / g; }
     else if (a > 17.6) { dynOk = 0; if (++dynBad > 1) { k = 15 / a; dynBad = 0; dynWait = min(dynWait * 2, 60); } }
     else { dynBad = 0; if (a < 12.5) k = 15 / a; else if (++dynOk > dynWait * 2) { k = 1.17; dynOk = 0; } }
-    if (abs(k - 1) < .12 && !menu) k = 1;
+    if (abs(k - 1) < .12) k = 1;
     k = k < 0.5 ? 0.5 : k > 1.7 ? 1.7 : k; const top = min(PIXMAX, DW * DH), mid = max(top / 2, PIXMIN), was = pix + det;
     if (k < 1 ? pix > mid || det <= DETMIN : pix < mid || det >= 1) {
       const end = k < 1 ? (det > DETMIN ? mid : PIXMIN) : det < 1 ? mid : top;
@@ -496,7 +496,7 @@ function frame(now) {
     const run = ks || tN > 1, mf = tId >= 0 ? 0.7 : kf - kb, mr = kr - kl, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
     let vx, vy, vz;
     if (fly) {
-      const sp = run ? 48 : 13, k = 1 - exp(-dt * 3), mu = ku - kd;
+      const sp = run ? 90 : 25, k = 1 - exp(-dt * 3), mu = ku - kd;
       vx = F[VX] + ((sy * cp * mf + cw * mr) * sp - F[VX]) * k; vy = F[VY] + ((sin(pitch) * mf + mu) * sp - F[VY]) * k; vz = F[VZ] + ((-cw * cp * mf + sy * mr) * sp - F[VZ]) * k;
     } else {
       const sp = run ? 9 : 3.8, k = 1 - exp(-dt * 7), l = hypot(mf, mr) || 1, f2 = mf / max(l, 1), r2 = mr / max(l, 1);
@@ -511,6 +511,12 @@ function frame(now) {
     const off = fly ? 0 : 1.2;
     F[CY] -= off; collide(); F[CY] += off;
     if (fly && kd && (grounded || (max(abs(F[CX]), abs(F[CZ])) > -OX - 12 && F[CY] <= fl + .05))) { fly = false; F[VY] = 0; }
+  }
+  // teaser: until the first Enter the camera rides the scripted path at half speed, fading at the loop
+  if (tour) {
+    F[FLT] = (F[FLT] + dt * .5) % FLYT; fly = true; F[VX] = F[VY] = F[VZ] = 0; flyAt();
+    const o = round(min(1, F[FLT] / 1.5, (FLYT - F[FLT]) / 1.5) * 20) / 20;
+    if (o !== tourO) { tourO = o; canvas.style.opacity = o; }
   }
   render();
   if (hud) {
@@ -557,7 +563,7 @@ const touch = (e) => {
 for (const n of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) canvas.addEventListener(n, touch, { passive: false });
 
 // ---------------------------------------------------------------- menu: the scene keeps rendering, blurred, behind it
-let menu = true;
+let menu = true, tour = location.hash !== '#capture', tourO = 1;
 const bDive = $('d');
 const ui = (m) => {
   if (dead) return;
@@ -565,6 +571,7 @@ const ui = (m) => {
   if (m) { release(); setTimeout(() => menu && bDive.focus(), 100); } else document.activeElement.blur();
 };
 const go = () => {
+  if (tour) { tour = false; canvas.style.opacity = ''; pose(0); }
   sound(); ui(false); bDive.textContent = 'Resume';
   if (mob) document.documentElement.requestFullscreen?.()?.then(() => screen.orientation.lock('landscape')).catch(() => 0);
   if (!mob) capture();

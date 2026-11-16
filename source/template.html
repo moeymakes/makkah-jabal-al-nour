@@ -28,18 +28,18 @@ body {
   body { width: 100dvh; height: 100dvw; transform-origin: 0 0; transform: rotate(90deg) translateY(-100%); }
 }
 
-/* the scene: blurred and dimmed behind the menu, comes into focus when you dive */
+/* the scene: plays behind the menu as a teaser, sharp and bright; only the plates under the text are frosted */
 canvas {
   position: absolute; width: 100%; height: 100%; touch-action: none; cursor: crosshair;
   transition: filter 1s, transform 1s, opacity 2s;
 }
-body:not(.g) canvas { filter: blur(1vmax) brightness(.5); transform: scale(1.06); }
 .l canvas { opacity: 0; }
 
 /* menu: the loading bar and the buttons share one grid cell, so nothing jumps when they swap */
 #m {
-  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: min(2.2em, 6vmin);
-  padding: 1em 1em 4.5em; text-align: center; background: radial-gradient(#1a0f0a00 30%, #1a0f0acc);
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  gap: 1em; padding: min(3em, 7vh) 1em min(2.4em, 5vh); text-align: center;
+  background: linear-gradient(#1a0f0ab3, #1a0f0a00 30%, #1a0f0a00 55%, #1a0f0acc);
   transition: opacity .5s, visibility .5s;
 }
 .g #m, .m #l, .l #g { opacity: 0; visibility: hidden; }
@@ -85,7 +85,7 @@ button:active, a:active { transform: translateY(.1em); filter: brightness(.9); }
 svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 
 /* dark plates under the dive button: detail level, list of controls, touch hint */
-#q, #tm, #snd, #k, #h { padding: 1em 1.6em; border-radius: .7em; background: #1a0f0ab3; }
+#q, #tm, #snd, #k, #h { padding: 1em 1.6em; border-radius: .7em; background: #1a0f0a8c; -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2); }
 
 /* detail level: three buttons in a row, the current one lit */
 #q, #tm, #snd { display: flex; align-items: center; gap: .4em; padding: .4em; }
@@ -98,6 +98,11 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 #q .on, #tm .on { pointer-events: none; }
 
 /* list of controls: two groups, key caps right-aligned against their labels */
+#kd summary { font-size: .8em; letter-spacing: .12em; text-transform: uppercase; color: #ffd9a0; cursor: pointer; list-style: none; text-shadow: 0 1px 6px #000c; }
+#kd summary::-webkit-details-marker { display: none; }
+#kd summary::after { content: ' ▾'; }
+#kd[open] summary::after { content: ' ▴'; }
+#kd[open] summary { margin-bottom: .6em; }
 #k { display: flex; justify-content: center; gap: 2em; text-align: left; }
 #k p { display: grid; grid-template-columns: auto auto; align-content: start; align-items: center; gap: .55em .9em; }
 #k p + p { padding-left: 2em; border-left: 2px solid #ffd9a040; }
@@ -107,14 +112,25 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   box-shadow: inset 0 -.15em #0004; color: #2a1608; text-align: center;
 }
 #h { display: none; }
+/* short screens (phones on their side): smaller title, tighter rows, so most of the view stays landscape */
+@media (max-height: 30em) {
+  #m { padding: .7em 1em .5em; }
+  h1 { font-size: 3.3em; }
+  header { gap: .7em; }
+  #g { gap: .45em; }
+  #q, #tm, #snd { padding: .15em .4em; }
+  #q button, #tm button, #snd button { padding: .55em 0; }
+  #h { padding: .5em 1em; }
+}
 @media (pointer: coarse), (max-height: 30em) {
-  #k { display: none; }
+  #kd { display: none; }
 }
 @media (pointer: coarse) {
   #h { display: block; }
 }
 
 /* in the scene: a small menu button (hidden while the mouse is captured, Esc does the same) and the stats line */
+header { display: grid; gap: 1.2em; }
 #t { margin-top: -.6em; font-size: .9em; font-weight: 600; letter-spacing: .04em; color: #ffd9a0; text-shadow: 0 1px 6px #000c; }
 #fl { position: absolute; top: .6em; right: 3.6em; display: none; padding: .3em .6em; background: #2a1608d9; box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8; }
 @media (pointer: coarse) { .g #fl { display: flex; } }
@@ -122,14 +138,8 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   position: absolute; top: .6em; right: .6em; display: none; padding: .3em .6em; background: #2a1608d9;
   box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8;
 }
-.g #t { margin-top: -.6em; font-size: .9em; font-weight: 600; letter-spacing: .04em; color: #ffd9a0; text-shadow: 0 1px 6px #000c; }
-#fl { position: absolute; top: .6em; right: 3.6em; display: none; padding: .3em .6em; background: #2a1608d9; box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8; }
-@media (pointer: coarse) { .g #fl { display: flex; } }
-#o { display: flex; }
-.p #t { margin-top: -.6em; font-size: .9em; font-weight: 600; letter-spacing: .04em; color: #ffd9a0; text-shadow: 0 1px 6px #000c; }
-#fl { position: absolute; top: .6em; right: 3.6em; display: none; padding: .3em .6em; background: #2a1608d9; box-shadow: inset 0 0 0 2px #ffd9a0, 0 .3em 1em #0009; font-size: 1.3em; color: #fff4e6; opacity: .8; }
-@media (pointer: coarse) { .g #fl { display: flex; } }
-#o { display: none; }
+.g #o { display: flex; }
+.p #o { display: none; }
 #i {
   position: absolute; top: 1em; left: 1.2em; margin: 0; font: .8em/1.6 ui-monospace, Consolas, monospace;
   white-space: pre-wrap; text-shadow: 0 1px 4px #000; pointer-events: none;
@@ -139,8 +149,8 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 <body class=l>
 <canvas id=c></canvas>
 <div id=m>
-  <h1>Jabal al-Nour</h1>
-  <p id=t>The stepped path to the Cave of Hira, Makkah far below</p>
+  <header><h1>Jabal al-Nour</h1>
+  <p id=t>The stepped path to the Cave of Hira, Makkah far below</p></header>
   <div id=a>
     <div id=l><div id=p><i id=b></i></div><p id=s>Arriving…</p><p id=w hidden>Use Google Chrome for optimal experience</p></div>
     <div id=g>
@@ -148,7 +158,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
       <p id=tm><span>Time</span><button>Dawn</button><button>Golden hour</button><button>Night</button></p>
       <p id=q><span>Detail</span><button>Low</button><button>Medium</button><button>High</button></p>
       <p id=snd><span>Sound</span><button>Mountain</button><button>Wind</button><button>Birds</button><button>Calm</button><button>Off</button><input id=vol type=range min=0 max=100 aria-label=Volume></p>
-      <div id=k>
+      <details id=kd><summary>Controls</summary><div id=k>
         <p>
           <i><b>W</b><b>A</b><b>S</b><b>D</b></i>Walk
           <i><b>Shift</b></i>Run
@@ -162,7 +172,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
           <i><b>M</b></i>Mute
           <i><b>H</b></i>Stats
         </p>
-      </div>
+      </div></details>
       <p id=h>Hold to walk forward · slide to look · second finger to run · ✈ to fly</p>
     </div>
   </div>
